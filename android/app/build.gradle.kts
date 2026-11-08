@@ -11,7 +11,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "dev.outsmartis.carmirror"
+        applicationId = "dev.outsmartis.pocketdesk"
         minSdk = 30
         targetSdk = 35
         versionCode = (project.findProperty("versionCode") as String?)?.toInt() ?: 1
