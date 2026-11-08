@@ -5,7 +5,7 @@
   --line: #2a313a;
   --text: #e8ecf1;
   --muted: #8b95a3;
-  --accent: #3e8bff;
+  --accent: #2dd4bf;
   --ok: #2ecc71;
   --warn: #f5a623;
   --bad: #ff5a5f;
@@ -109,7 +109,7 @@ button, select { font: inherit; color: inherit; }
   background: var(--panel-2);
   cursor: pointer;
 }
-.btn.primary, button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary, button.primary { background: var(--accent); border-color: var(--accent); color: #04201c; font-weight: 600; }
 
 /* panes */
 .panes { align-items: stretch; justify-content: stretch; gap: 4px; background: #000; }
