@@ -190,6 +190,18 @@ export class Player {
     }
     if (!this.decoder || this.decoder.state !== 'configured') return;
 
+    // Some hardware decoders (seen: the Android emulator's WebView) take every frame and output only
+    // the first: the picture freezes while video keeps arriving. Then decode in software instead.
+    this.sinceOutput = (this.sinceOutput || 0) + 1;
+    if (hwPreference === 'prefer-hardware' && this.sinceOutput > 90 && performance.now() - (this.lastOutput || 0) > 3000) {
+      warn('hardware decoder stopped giving frames; switching to software decoding');
+      hwPreference = 'prefer-software';
+      this.sinceOutput = 0;
+      this.lastOutput = performance.now();
+      this.resetDecoder();
+      return;
+    }
+
     const key = (flags & F_KEY) !== 0;
     if (this.waitingKey && !key) {
       this.dropped++;
@@ -260,6 +272,8 @@ export class Player {
   }
 
   draw(frame) {
+    this.lastOutput = performance.now();
+    this.sinceOutput = 0;
     if (this.closed) {
       frame.close();
       return;

@@ -16,7 +16,7 @@ android {
         targetSdk = 35
         versionCode = (project.findProperty("versionCode") as String?)?.toInt() ?: 1
         versionName = (project.findProperty("versionName") as String?) ?: "1.0.0"
-        buildConfigField("String", "DEFAULT_SERVER", "\"https://carmirror.outsmartis.dev\"")
+        buildConfigField("String", "DEFAULT_SERVER", "\"https://pocketdesk.outsmartis.dev\"")
         buildConfigField("String", "BUILT_AT", "\"${Instant.now()}\"")
         ndk {
             // phones are arm64; x86_64 is only for the emulator used in testing

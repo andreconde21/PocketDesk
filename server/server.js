@@ -173,12 +173,14 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (p === '/download/pocketdesk.apk' || p === '/pocketdesk.apk') {
-    const apk = path.join(APK_DIR, 'pocketdesk.apk');
+  // the phone app and the TV app: served from APK_DIR when present, else from the latest GitHub release
+  const apkName = { '/download/pocketdesk.apk': 'pocketdesk.apk', '/pocketdesk.apk': 'pocketdesk.apk', '/pocketdesk-tv.apk': 'pocketdesk-tv.apk' }[p];
+  if (apkName) {
+    const apk = path.join(APK_DIR, apkName);
     if (fs.existsSync(apk)) {
-      sendFile(res, apk, { 'content-disposition': 'attachment; filename="pocketdesk.apk"' });
+      sendFile(res, apk, { 'content-disposition': `attachment; filename="${apkName}"` });
     } else {
-      res.writeHead(302, { location: 'https://github.com/andreconde21/PocketDesk/releases/latest/download/pocketdesk.apk' });
+      res.writeHead(302, { location: `https://github.com/andreconde21/PocketDesk/releases/latest/download/${apkName}` });
       res.end();
     }
     return;

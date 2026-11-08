@@ -194,3 +194,16 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
   .task { padding-right: 8px; }
   .clock { display: none; }
 }
+
+/* short screens (a 1080p TV is often 960x540 CSS px): the pairing panel must fit above the taskbar */
+.panel { max-height: calc(100% - 16px); overflow: auto; }
+@media (max-height: 640px) {
+  .panel { padding: 14px 24px; }
+  .panel > img { display: none; }
+  .panel h1 { font-size: 19px; margin: 2px 0 4px; }
+  .panel p { margin: 4px 0; }
+  .code { margin: 10px 0 6px; }
+  .code span { height: 46px; font-size: 24px; }
+  .keypad { gap: 6px; margin-top: 4px; }
+  .keypad button { height: 38px; }
+}

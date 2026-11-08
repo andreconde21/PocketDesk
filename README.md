@@ -74,6 +74,10 @@ Phone → screen: `allApps{apps}`, `icon{pkg,icon}`, `tasks{sid,tasks:[{id,pkg,l
   - `public/index.html`, `public/js/desk.js`, `public/desk.css`: the desktop client.
   - `public/js/player.js`, `audio.js`, `rtc.js`: decoding, audio, WebRTC (from CarMirror).
   - `public/about.html` (landing page), `public/get.html` (download + setup), `public/diag.html`.
+- `android/tv/`: PocketDesk for TV, a full-screen WebView of the desktop page for Android TV /
+  Google TV. The page sees ` PocketDeskTV` in the user agent and turns the D-pad into a cursor
+  (arrows move with acceleration, OK clicks, past the top/bottom edge scrolls); the app forwards
+  Back and Menu to `window.pdRemote()`.
 - `android/`: the phone app. `DeskSession.kt` (the desktop), `PrivilegedService.kt` (helper),
   `SelfAdb.kt` / `SelfHost.kt` / `SelfStart.kt` (helper without Shizuku), `MainActivity.kt`.
   The car code from CarMirror is still there (and stays off unless used).
@@ -104,7 +108,9 @@ Needs the NDK (for the SPAKE2 library in `android/libadb`). Keep the keystore ou
 Verified on an Android 16 emulator with headless Chrome as the screen: pairing, helper started
 without Shizuku (also after an update), desktop with the launcher's home, app menu, freeform
 windows, click, drag to move, wheel scroll, typing (no on-screen keyboard), live resize,
-closing from the taskbar. Not yet verified: Samsung One UI hardware, sound on a real phone.
+closing from the taskbar. TV app (Android 14 emulator at 1080p, WebView 113): pairing with the
+remote's cursor, app menu with Menu and the D-pad, clicking a window's close button, Back.
+Not yet verified: Samsung One UI hardware, sound on a real phone.
 
 ## Licenses
 

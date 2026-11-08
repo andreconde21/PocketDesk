@@ -33,7 +33,7 @@ function save(key, value) {
   }
 }
 
-const tvLike = /\b(TV|AFT\w*|CrKey|BRAVIA|SMART-TV|Tizen|Web0S|webOS|GoogleTV)\b/i.test(navigator.userAgent);
+const tvLike = /\b(TV|PocketDeskTV|AFT\w*|CrKey|BRAVIA|SMART-TV|Tizen|Web0S|webOS|GoogleTV)\b/i.test(navigator.userAgent);
 const settings = {
   maxw: 1920,
   scale: tvLike ? 1.5 : 1,
@@ -527,6 +527,7 @@ canvas.addEventListener('pointerdown', (e) => {
   else sendTouch(0, e);
 });
 canvas.addEventListener('pointermove', (e) => {
+  if (remote.on && e.pointerType === 'mouse' && e.isTrusted && (e.movementX || e.movementY)) remoteOff();
   if (e.pointerType === 'mouse') sendMouse('move', e);
   else if (touchIds.has(e.pointerId)) sendTouch(2, e);
 });
@@ -572,12 +573,14 @@ function capturingKeys() {
 
 document.addEventListener('keydown', (e) => {
   if (!$('#pair').hidden) {
+    if (remote.on && remoteKey(e)) return; // the on-screen keypad, clicked with the remote's cursor
     if (/^\d$/.test(e.key)) typeDigit(e.key);
     else if (e.key === 'Backspace') typeDigit('⌫');
     else if (e.key === 'Enter') submitCode();
     return;
   }
   if (!$('#menu').hidden) return menuKey(e);
+  if (remote.on && remoteKey(e)) return;
   if (!capturingKeys()) return;
   if (e.key === 'F11') return; // the browser's own full screen
   // the Windows / Command key alone opens the app menu; with another key it is a modifier
@@ -711,7 +714,7 @@ function renderMenu() {
   if (menuSel >= apps.length) menuSel = 0;
   apps.forEach((a, i) => {
     const b = document.createElement('button');
-    b.className = 'app' + (i === menuSel && $('#menu-search').value ? ' sel' : '');
+    b.className = 'app' + (i === menuSel && ($('#menu-search').value || remote.on) ? ' sel' : '');
     b.title = a.label;
     b.appendChild(iconImg(a.pkg));
     const s = document.createElement('span');
@@ -738,12 +741,18 @@ function openMenu() {
   $('#menu-search').value = '';
   menuSel = 0;
   renderMenu();
-  $('#menu-search').focus();
+  // with a TV remote the search box would pop up the TV's keyboard: the D-pad picks instead
+  if (!remote.on) $('#menu-search').focus();
+  else document.activeElement?.blur();
 }
 function closeMenu() {
   if ($('#menu').hidden) return;
   $('#menu').hidden = true;
   $('#btn-apps').classList.remove('open');
+}
+/** Columns in the app grid as laid out now (it depends on the window width). */
+function menuCols() {
+  return getComputedStyle($('#menu-grid')).gridTemplateColumns.split(' ').filter(Boolean).length || 1;
 }
 function menuKey(e) {
   if (e.key === 'Escape' || e.key === 'Meta') {
@@ -755,11 +764,11 @@ function menuKey(e) {
     if (a) openApp(a.pkg);
   } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
     e.preventDefault();
-    menuSel = Math.min(filteredApps().length - 1, menuSel + (e.key === 'ArrowDown' ? 4 : 1));
+    menuSel = Math.min(filteredApps().length - 1, menuSel + (e.key === 'ArrowDown' ? menuCols() : 1));
     renderMenu();
   } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
     e.preventDefault();
-    menuSel = Math.max(0, menuSel - (e.key === 'ArrowUp' ? 4 : 1));
+    menuSel = Math.max(0, menuSel - (e.key === 'ArrowUp' ? menuCols() : 1));
     renderMenu();
   }
 }
@@ -829,6 +838,105 @@ $('#btn-forget').onclick = () => {
   save('pd.token', null);
   setTimeout(() => location.reload(), 300);
 };
+
+
+// ------------------------------------------------------------------ TV remote as a mouse
+//
+// In the PocketDesk TV app (no mouse on most TVs) the D-pad moves a cursor over the whole page,
+// OK clicks, pushing past the top or bottom edge scrolls, Back is Back and Menu opens the apps.
+// A real mouse moving turns this off.
+
+const remote = {
+  on: /PocketDeskTV/.test(navigator.userAgent),
+  x: innerWidth / 2,
+  y: innerHeight / 2,
+  el: null,
+};
+
+function remoteCursor() {
+  if (!remote.el) {
+    const c = document.createElement('div');
+    c.id = 'remote-cursor';
+    c.innerHTML = '<svg viewBox="0 0 24 24" width="28" height="28"><path d="M4 2l15 11-7 1-3 7z" fill="#fff" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+    c.style.cssText = 'position:fixed;left:0;top:0;z-index:50;pointer-events:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))';
+    document.body.appendChild(c);
+    remote.el = c;
+  }
+  remote.el.hidden = !remote.on;
+  remote.el.style.transform = `translate(${remote.x - 4}px, ${remote.y - 2}px)`;
+}
+
+function remoteOff() {
+  remote.on = false;
+  remoteCursor();
+}
+
+function remoteEvent(buttons) {
+  return { clientX: remote.x, clientY: remote.y, buttons, shiftKey: false, ctrlKey: false, altKey: false, metaKey: false };
+}
+
+function overCanvas() {
+  const r = canvas.getBoundingClientRect();
+  return !canvas.hidden && remote.x >= r.left && remote.x < r.right && remote.y >= r.top && remote.y < r.bottom;
+}
+
+const remoteKeys = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+let remoteSpeed = 0;
+let remoteLast = 0;
+
+/** Handles a remote key while remote mode is on; true when it was used. */
+function remoteKey(e) {
+  const dir = remoteKeys[e.key];
+  if (dir) {
+    e.preventDefault();
+    const now = performance.now();
+    remoteSpeed = now - remoteLast < 180 ? Math.min(remoteSpeed + 4, 48) : 12;
+    remoteLast = now;
+    const r = canvas.getBoundingClientRect();
+    const nx = Math.max(0, Math.min(innerWidth - 1, remote.x + dir[0] * remoteSpeed));
+    const ny = Math.max(0, Math.min(innerHeight - 1, remote.y + dir[1] * remoteSpeed));
+    // pushing against the top or bottom of the desktop scrolls what is under the cursor
+    if (dir[1] && overCanvas() && ((dir[1] < 0 && remote.y <= r.top + 2) || (dir[1] > 0 && ny >= r.bottom - 2))) {
+      const v = toVideo(remoteEvent(0));
+      state.link?.sendCtl({ t: 'wheel', sid: state.sid, ...v, dx: 0, dy: -dir[1] * 1.5, m: 0 });
+    }
+    remote.x = nx;
+    remote.y = Math.min(ny, overCanvas() ? Math.max(r.top, ny) : ny);
+    remoteCursor();
+    if (overCanvas()) sendMouse('move', remoteEvent(0));
+    return true;
+  }
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    if (e.repeat) return true;
+    if (overCanvas()) {
+      sendMouse('down', remoteEvent(1));
+      setTimeout(() => sendMouse('up', remoteEvent(0)), 60);
+    } else {
+      document.elementFromPoint(remote.x, remote.y)?.closest('button, [role="button"], a, select, input')?.click();
+    }
+    return true;
+  }
+  return false;
+}
+
+/** Called by the TV app for keys the page never sees (Back, Menu). */
+window.pdRemote = (k) => {
+  if (k === 'back') {
+    if ($('#settings').open) $('#settings').close();
+    else if (!$('#menu').hidden) closeMenu();
+    else if (state.sid) key('back');
+    else return false; // nothing here to go back from: the TV app leaves
+    return true;
+  }
+  if (k === 'menu') {
+    if (state.sid) toggleMenu();
+    return true;
+  }
+  return false;
+};
+
+if (remote.on) remoteCursor();
 
 // ------------------------------------------------------------------ first-run hint
 

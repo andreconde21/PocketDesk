@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "PocketDesk"
-include(":app", ":libadb")
+include(":app", ":libadb", ":tv")
