@@ -9,6 +9,8 @@ class CarMirrorApp : Application() {
         PhoneLog.init(this)
         // Os.setsockoptIfreq (pinning the relay to the hotspot interface) is a hidden API
         runCatching { org.lsposed.hiddenapibypass.HiddenApiBypass.addHiddenApiExemptions("Landroid/system/Os;") }
+        // CAR-002: ADB pairing (libadb) uses the platform Conscrypt's exportKeyingMaterial
+        runCatching { org.lsposed.hiddenapibypass.HiddenApiBypass.addHiddenApiExemptions("Lcom/android/org/conscrypt/") }
         PeerConnectionFactory.initialize(
             PeerConnectionFactory.InitializationOptions.builder(this)
                 // libwebrtc only gathers candidates on interfaces Android's ConnectivityManager

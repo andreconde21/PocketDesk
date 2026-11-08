@@ -86,4 +86,6 @@ dependencies {
     implementation("io.getstream:stream-webrtc-android:1.3.10")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    implementation(project(":libadb"))
+    implementation("org.bouncycastle:bcpkix-jdk15to18:1.81")
 }

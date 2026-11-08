@@ -496,6 +496,7 @@ class MainActivity : ComponentActivity() {
                 else -> {}
             }
         }
+        SelfStartBlock(shizuku)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Start when the app opens", modifier = Modifier.weight(1f))
             Switch(checked = autostart, onCheckedChange = {
@@ -503,6 +504,39 @@ class MainActivity : ComponentActivity() {
                 prefs.startOnLaunch = it
             })
         }
+    }
+
+    /** CAR-002: our own ADB client starts the helper, so Shizuku isn't needed after a restart. */
+    @Composable
+    private fun SelfStartBlock(shizuku: ShizukuState) {
+        var status by remember { mutableStateOf("") }
+        val paired = SelfAdb.isPaired(this)
+        val canToggle = SelfAdb.canToggleWirelessDebugging(this)
+        Text("Start without Shizuku", fontWeight = FontWeight.SemiBold)
+        Text(
+            when {
+                shizuku == ShizukuState.READY && ShizukuBridge.fromSelfHost -> "Helper running (started by PocketDesk)."
+                !paired -> "Pair once: Developer options → Wireless debugging → Pair device with pairing code, " +
+                    "then type the code in the PocketDesk notification. After that it starts by itself at every restart (on Wi-Fi)."
+                !canToggle -> "Paired, but auto-start permission is missing. Tap Start while Wireless debugging is on."
+                else -> "Paired. Starts by itself after a restart, once on Wi-Fi."
+            },
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = {
+                PairingNotification.show(this@MainActivity)
+                runCatching { startActivity(Intent("android.settings.APPLICATION_DEVELOPMENT_SETTINGS")) }
+            }) { Text(if (paired) "Pair again" else "Pair") }
+            if (paired) Button(onClick = {
+                status = "Starting…"
+                kotlin.concurrent.thread {
+                    val r = SelfAdb.startHelper(applicationContext)
+                    runOnUiThread { status = r.exceptionOrNull()?.let { "Failed: ${it.message}" } ?: "Started" }
+                }
+            }) { Text("Start now") }
+        }
+        if (status.isNotEmpty()) Text(status, style = MaterialTheme.typography.bodySmall)
     }
 
     @Composable

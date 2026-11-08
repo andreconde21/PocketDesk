@@ -40,6 +40,7 @@ object ShizukuBridge {
             }
             val s = IPrivileged.Stub.asInterface(binder)
             service = s
+            fromSelfHost = false
             Log.i(TAG, "privileged service connected (uid ${runCatching { s.uid() }.getOrNull()})")
             refresh()
             synchronized(this@ShizukuBridge) {
@@ -50,8 +51,34 @@ object ShizukuBridge {
 
         override fun onServiceDisconnected(name: ComponentName?) {
             Log.w(TAG, "privileged service disconnected")
+            if (fromSelfHost) return
             service = null
             refresh()
+        }
+    }
+
+    /** True while the service comes from SelfHost (started by our own ADB client), not Shizuku. */
+    @Volatile var fromSelfHost = false
+        private set
+
+    /** SelfHostProvider hands us the self-started helper's binder (repeatedly; same binder is a no-op). */
+    fun offerSelfHost(binder: IBinder) {
+        val current = service
+        if (current != null && (current.asBinder() == binder || !fromSelfHost)) return
+        if (!binder.pingBinder()) return
+        runCatching {
+            binder.linkToDeath({
+                if (service?.asBinder() == binder) { service = null; fromSelfHost = false; refresh() }
+            }, 0)
+        }
+        val s = IPrivileged.Stub.asInterface(binder)
+        service = s
+        fromSelfHost = true
+        Log.i(TAG, "self-started helper connected (uid ${runCatching { s.uid() }.getOrNull()})")
+        refresh()
+        synchronized(this) {
+            waiters.forEach { it.complete(s) }
+            waiters.clear()
         }
     }
 
@@ -59,7 +86,7 @@ object ShizukuBridge {
         appContext = context.applicationContext
         Shizuku.addBinderReceivedListenerSticky { refresh(); bindIfPossible() }
         Shizuku.addBinderDeadListener {
-            service = null
+            if (!fromSelfHost) service = null
             refresh()
         }
         Shizuku.addRequestPermissionResultListener { code, result ->

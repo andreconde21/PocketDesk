@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "CarMirror"
-include(":app")
+rootProject.name = "PocketDesk"
+include(":app", ":libadb")

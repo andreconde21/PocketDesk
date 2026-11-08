@@ -3,3 +3,6 @@ local.properties
 build/
 app/build/
 *.jks
+
+# native build output (CAR-002)
+.cxx/
