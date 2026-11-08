@@ -26,6 +26,8 @@ private const val KEY_CODE = "code"
 class SelfStartBootReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED && intent.action != Intent.ACTION_MY_PACKAGE_REPLACED) return
+        // PocketDesk: be reachable for the screen without opening the app
+        if (Prefs(ctx).startOnLaunch) runCatching { MirrorService.start(ctx) }.onFailure { Log.w(TAG, "can't start link service: $it") }
         if (!SelfAdb.isPaired(ctx) || !SelfAdb.prefs(ctx).getBoolean("autoStart", true)) return
         Log.i(TAG, "${intent.action}: starting helper")
         runCatching { ctx.startForegroundService(Intent(ctx, SelfStartService::class.java)) }

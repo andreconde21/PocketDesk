@@ -302,6 +302,23 @@ class CarPeer(
                 startPhoneExtras()
             }
             "apps?" -> sendApps()
+            "allApps?" -> sendAllApps()
+            // PocketDesk desktop: mouse, keyboard, windows
+            "mouse" -> desk(sid)?.mouse(
+                msg.optString("a"), msg.optInt("b"), msg.optInt("x"), msg.optInt("y"), msg.optInt("w"), msg.optInt("h"), msg.optInt("m"),
+            )
+            "wheel" -> desk(sid)?.wheel(
+                msg.optInt("x"), msg.optInt("y"), msg.optInt("w"), msg.optInt("h"),
+                msg.optDouble("dx", 0.0).toFloat(), msg.optDouble("dy", 0.0).toFloat(), msg.optInt("m"),
+            )
+            "kb" -> desk(sid)?.also {
+                if (!carKeyboard) { carKeyboard = true; applyKeyboard() }
+            }?.keyEvent(msg.optBoolean("down"), msg.optString("code"), msg.optString("key"), msg.optInt("m"), msg.optInt("r"))
+            "text" -> sessions[sid]?.typeText(msg.optString("text"))
+            "open" -> desk(sid)?.open(msg.optString("pkg"))?.let { err ->
+                sendCtl(JSONObject().put("t", "error").put("sid", sid).put("msg", err))
+            }
+            "task" -> desk(sid)?.task(msg.optInt("id"), msg.optString("a", "focus"))
             "ping" -> sendCtl(JSONObject().put("t", "pong").put("ts", msg.opt("ts")))
             "start" -> startSession(msg)
             "stop" -> sessions.remove(sid)?.stop()
@@ -320,6 +337,8 @@ class CarPeer(
                 // 1.8.1 cars send only {on}
                 keyboardMode = msg.optString("mode", if (msg.optBoolean("on", true)) "on" else "off")
                 applyKeyboard()
+                // a desktop has a real keyboard on the screen's side: on-screen keyboard only when asked for
+                sessions.values.filterIsInstance<DeskSession>().forEach { it.setKeyboard(keyboardMode == "on") }
             }
             "type" -> {
                 if (!carKeyboard) {
@@ -344,6 +363,39 @@ class CarPeer(
                 msg.optInt("bitrate", 8_000_000).coerceIn(1_000_000, 40_000_000),
             )
         }
+    }
+
+    private fun desk(sid: Long) = sessions[sid] as? DeskSession
+
+    /** Every launchable app, for the desktop's app menu; icons follow one by one. */
+    private fun sendAllApps() {
+        val apps = Apps.launchable(context)
+        val arr = JSONArray()
+        apps.forEach { arr.put(JSONObject().put("pkg", it.pkg).put("label", it.label)) }
+        sendCtl(JSONObject().put("t", "allApps").put("apps", arr))
+        thread(name = "icons", isDaemon = true) {
+            for (a in apps) {
+                if (closed) break
+                if (a.pkg in sentIcons) continue
+                val icon = Apps.iconPngBase64(context, a.pkg, 72) ?: continue
+                sentIcons += a.pkg
+                post { sendCtl(JSONObject().put("t", "icon").put("pkg", a.pkg).put("icon", icon)) }
+            }
+        }
+    }
+
+    private fun sendTasks(sess: DeskSession, tasks: JSONArray) {
+        val pm = context.packageManager
+        for (i in 0 until tasks.length()) {
+            val t = tasks.getJSONObject(i)
+            val pkg = t.optString("pkg")
+            t.put("label", runCatching { pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg))
+            if (pkg !in sentIcons) {
+                sentIcons += pkg
+                Apps.iconPngBase64(context, pkg, 72)?.let { sendCtl(JSONObject().put("t", "icon").put("pkg", pkg).put("icon", it)) }
+            }
+        }
+        sendCtl(JSONObject().put("t", "tasks").put("sid", sess.sid).put("tasks", tasks))
     }
 
     private fun sendApps() {
@@ -390,7 +442,7 @@ class CarPeer(
         if (show == keyboard) return
         keyboard = show
         Log.i(tag, "on-screen keyboard ${if (show) "shown" else "hidden"} (mode $keyboardMode, car keyboard $carKeyboard)")
-        sessions.values.forEach { it.setKeyboard(show) }
+        sessions.values.filter { it !is DeskSession }.forEach { it.setKeyboard(show) }
     }
 
     private fun startPhoneExtras() {
@@ -450,7 +502,33 @@ class CarPeer(
             fps = msg.optInt("fps", 60).coerceIn(10, 60),
             bitrate = msg.optInt("bitrate", 8_000_000).coerceIn(1_000_000, 40_000_000),
         )
-        launchSession(p, mode())
+        if (p.pkg == DeskSession.PKG) launchDesk(p) else launchSession(p, mode())
+    }
+
+    private fun launchDesk(p: StartParams) {
+        val session = DeskSession(
+            context, p.sid, p.w, p.h, p.dpi, p.fps, p.bitrate,
+            onStarted = { sess -> sendCtl(JSONObject().put("t", "started").put("sid", sess.sid)) },
+            onEnded = { sess, reason ->
+                post {
+                    sessions.remove(sess.sid, sess)
+                    AppState.sessions.value = sessions.size
+                    if (reason != null) AppState.lastError.value = reason
+                    sendCtl(JSONObject().put("t", "ended").put("sid", sess.sid).apply { if (reason != null) put("reason", reason) })
+                    updateCarState()
+                }
+            },
+            onStats = { sess, lagMs, dropped ->
+                sendCtl(JSONObject().put("t", "stats").put("sid", sess.sid).put("lag", lagMs).put("dropped", dropped))
+            },
+            onTasks = { sess, tasks -> post { sendTasks(sess, tasks) } },
+        )
+        sessions.put(p.sid, session)?.stop()
+        session.setKeyboard(keyboardMode == "on")
+        videoChannels[p.sid]?.let { session.attachChannel(it) }
+        AppState.sessions.value = sessions.size
+        session.start()
+        updateCarState()
     }
 
     private fun launchSession(p: StartParams, mode: String) {
@@ -519,7 +597,7 @@ class CarPeer(
     // ------------------------------------------------------------ now playing
 
     private var lastMedia = ""
-    private val sentIcons = mutableSetOf<String>()
+    private val sentIcons: MutableSet<String> = ConcurrentHashMap.newKeySet()
     @Volatile private var mediaWatcher: Thread? = null
 
     /** Tells the car what's playing (Shizuku: real title; otherwise the app in front), for the Tesla media card. */
@@ -595,7 +673,8 @@ class CarPeer(
     private fun updateCarState() {
         if (closed) return
         val n = sessions.size
-        AppState.car.value = "$carInfo connected" + if (n > 0) " · $n app${if (n > 1) "s" else ""} showing" else ""
+        AppState.car.value = if (sessions.values.any { it is DeskSession }) "Screen connected · desktop open"
+        else "$carInfo connected" + if (n > 0) " · $n app${if (n > 1) "s" else ""} showing" else ""
     }
 
     fun close(reason: String, notify: Boolean = true) {

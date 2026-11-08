@@ -1,4 +1,4 @@
-// CarMirror signaling server.
+// PocketDesk signaling server (forked from CarMirror).
 //
 // - Serves the car web client (public/) and the APK download.
 // - Pairs a car browser with a phone using a 6-digit code shown in the phone app,
@@ -27,7 +27,7 @@ fs.mkdirSync(DATA_DIR, { recursive: true });
 
 // TURN relay (coturn, REST-API auth): short-lived credentials signed with the shared secret.
 // Only used when the car opts in, for when the direct link can't be made.
-const TURN_HOST = process.env.TURN_HOST || 'carmirror.outsmartis.dev';
+const TURN_HOST = process.env.TURN_HOST || 'pocketdesk.outsmartis.dev';
 let TURN_SECRET = null;
 try {
   TURN_SECRET = fs.readFileSync(process.env.TURN_SECRET_FILE || '/turn/secret', 'utf8').trim() || null;
@@ -161,7 +161,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (p === '/api/version') {
-    const apk = path.join(APK_DIR, 'carmirror.apk');
+    const apk = path.join(APK_DIR, 'pocketdesk.apk');
     let apkInfo = null;
     try {
       apkInfo = JSON.parse(fs.readFileSync(path.join(APK_DIR, 'version.json'), 'utf8'));
@@ -173,10 +173,14 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (p === '/download/carmirror.apk' || p === '/carmirror.apk') {
-    sendFile(res, path.join(APK_DIR, 'carmirror.apk'), {
-      'content-disposition': 'attachment; filename="carmirror.apk"',
-    });
+  if (p === '/download/pocketdesk.apk' || p === '/pocketdesk.apk') {
+    const apk = path.join(APK_DIR, 'pocketdesk.apk');
+    if (fs.existsSync(apk)) {
+      sendFile(res, apk, { 'content-disposition': 'attachment; filename="pocketdesk.apk"' });
+    } else {
+      res.writeHead(302, { location: 'https://github.com/andreconde21/PocketDesk/releases/latest/download/pocketdesk.apk' });
+      res.end();
+    }
     return;
   }
 
@@ -451,4 +455,4 @@ setInterval(() => {
   }
 }, 20_000);
 
-server.listen(PORT, () => log(`carmirror server on :${PORT}`));
+server.listen(PORT, () => log(`pocketdesk server on :${PORT}`));

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <title>CarMirror Diagnostics</title>
+  <title>PocketDesk browser check</title>
   <link rel="stylesheet" href="/style.css">
   <style>
     body { overflow: auto; }
@@ -18,13 +18,13 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>CarMirror diagnostics</h1>
-    <p class="muted">Open this page in the car's browser. The results are sent to the CarMirror server automatically.</p>
+    <h1>PocketDesk browser check</h1>
+    <p class="muted">Open this page in the screen's browser (TV, laptop). The results are sent to the PocketDesk server automatically.</p>
     <table id="t"></table>
     <h2>Canvas animation test</h2>
-    <p class="muted">Should keep moving while driving. If it freezes when the car moves, the browser throttles canvas drawing.</p>
+    <p class="muted">Should move smoothly. If it stutters, this browser is too slow for the desktop stream.</p>
     <canvas id="anim" width="480" height="120"></canvas>
-    <p><a class="btn" href="/">Back to CarMirror</a></p>
+    <p><a class="btn" href="/">Back to PocketDesk</a></p>
   </div>
   <script type="module">
     import { log } from '/js/remotelog.js';

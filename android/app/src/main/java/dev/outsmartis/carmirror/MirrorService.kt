@@ -62,7 +62,7 @@ class MirrorService : Service() {
             )
             .createPeerConnectionFactory()
         createChannel()
-        startForegroundCompat("Waiting for the car")
+        startForegroundCompat("Waiting for a screen")
         wakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "CarMirror:link")
             .apply { setReferenceCounted(false); acquire() }
@@ -72,7 +72,8 @@ class MirrorService : Service() {
         // the hotspot watcher: car mode as soon as the hotspot comes on (Shizuku only)
         hotspotWatcher = kotlin.concurrent.thread(name = "hotspot-watch", isDaemon = true) {
             while (!stopped) {
-                runCatching { CarHotspot.watch(prefs.autoCarHotspot) }
+                // PocketDesk: never touch the hotspot unless the car hotspot setting is on
+                if (prefs.autoCarHotspot) runCatching { CarHotspot.watch(true) }
                 Thread.sleep(5000)
             }
         }
@@ -201,12 +202,12 @@ class MirrorService : Service() {
                 onClosed = { p ->
                     main.post {
                         if (peer === p) peer = null
-                        updateNotification("Waiting for the car")
+                        updateNotification("Waiting for a screen")
                     }
                 },
                 turn = if (data.optBoolean("relay")) turn else null,
             )
-            updateNotification("Car connected")
+            updateNotification("Screen connected")
         }
         if (peer?.connId == from) peer?.onSignal(data)
     }
@@ -215,7 +216,7 @@ class MirrorService : Service() {
 
     private fun createChannel() {
         val nm = getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel(CHANNEL, "CarMirror", NotificationManager.IMPORTANCE_LOW))
+        nm.createNotificationChannel(NotificationChannel(CHANNEL, "PocketDesk", NotificationManager.IMPORTANCE_LOW))
     }
 
     private fun buildNotification(text: String): Notification {
@@ -227,7 +228,7 @@ class MirrorService : Service() {
         )
         return Notification.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat)
-            .setContentTitle("CarMirror")
+            .setContentTitle("PocketDesk")
             .setContentText(text)
             .setContentIntent(open)
             .setOngoing(true)
@@ -249,7 +250,7 @@ class MirrorService : Service() {
         if (Build.VERSION.SDK_INT >= 34) {
             startForeground(
                 NOTIFICATION_ID,
-                buildNotification("Sharing the screen with the car"),
+                buildNotification("Sharing the screen"),
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE or ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION,
             )
         }

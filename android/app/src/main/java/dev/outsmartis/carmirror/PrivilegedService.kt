@@ -91,6 +91,149 @@ class PrivilegedService : IPrivileged.Stub() {
         return !out.contains("Error")
     }
 
+    override fun createDesktop(name: String, width: Int, height: Int, dpi: Int, surface: Surface): Int {
+        // what a real external monitor gets: system decorations (wallpaper, the launcher's
+        // secondary home), its own focus, touch, and content destroyed with it (apps go away
+        // rather than piling onto the phone screen)
+        val flags = DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC or FLAG_SUPPORTS_TOUCH or
+            FLAG_DESTROY_CONTENT_ON_REMOVAL or FLAG_SHOULD_SHOW_SYSTEM_DECORATIONS or FLAG_TRUSTED or
+            FLAG_OWN_DISPLAY_GROUP or FLAG_ALWAYS_UNLOCKED or FLAG_OWN_FOCUS
+        val vd = displayManager().createVirtualDisplay(name, width, height, dpi, surface, flags)
+            ?: throw IllegalStateException("createVirtualDisplay returned null")
+        val id = vd.display.displayId
+        displays[id] = vd
+        setImePolicy(id, IME_POLICY_LOCAL)
+        keepLandscape(id)
+        Log.i(tag, "desktop $id ${width}x$height/$dpi")
+        return id
+    }
+
+    override fun launchWindowed(component: String, displayId: Int): Boolean {
+        val out = sh(
+            "am", "start", "--display", displayId.toString(), "--windowingMode", WINDOWING_MODE_FREEFORM.toString(),
+            "-f", "0x10000000", "-n", component,
+        )
+        Log.i(tag, "launch windowed $component on $displayId: ${out.trim()}")
+        return !out.contains("Error")
+    }
+
+    override fun desktopTasks(displayId: Int): String {
+        val arr = org.json.JSONArray()
+        runCatching {
+            val atm = serviceInterface("activity_task", "android.app.IActivityTaskManager")
+            val m = atm.javaClass.methods.filter { it.name == "getTasks" }.maxByOrNull { it.parameterCount }
+                ?: error("no getTasks")
+            val args: Array<Any?> = when (m.parameterCount) {
+                4 -> arrayOf(50, false, false, displayId) // Android 13+: (max, onlyVisibleRecents, keepIntentExtra, displayId)
+                3 -> arrayOf(50, false, false)
+                else -> arrayOf(50)
+            }
+            @Suppress("UNCHECKED_CAST")
+            val tasks = m.invoke(atm, *args) as List<Any>
+            for (t in tasks) {
+                val c = t.javaClass
+                // TaskInfo fields are public (some @hide): getField also finds the inherited ones
+                fun field(n: String): Any? = runCatching { c.getField(n).get(t) }.getOrNull()
+                val disp = (field("displayId") as? Int) ?: continue
+                if (disp != displayId) continue
+                val base = (field("baseActivity") ?: field("topActivity")) as? android.content.ComponentName ?: continue
+                val type = field("topActivityType") as? Int
+                if (type == ACTIVITY_TYPE_HOME) continue
+                arr.put(
+                    org.json.JSONObject()
+                        .put("id", field("taskId") as? Int ?: continue)
+                        .put("pkg", base.packageName)
+                        .put("visible", field("isVisible") as? Boolean ?: true)
+                        .put("mode", (field("configuration") as? android.content.res.Configuration)?.let { cfg ->
+                            runCatching {
+                                val wc = cfg.javaClass.getField("windowConfiguration").get(cfg)
+                                wc.javaClass.getMethod("getWindowingMode").invoke(wc) as Int
+                            }.getOrNull()
+                        } ?: 0),
+                )
+            }
+        }.onFailure { Log.w(tag, "desktopTasks: $it") }
+        return arr.toString()
+    }
+
+    override fun taskAction(taskId: Int, action: String): Boolean = runCatching {
+        val atm = serviceInterface("activity_task", "android.app.IActivityTaskManager")
+        when (action) {
+            "close" -> atm.javaClass.getMethod("removeTask", Int::class.javaPrimitiveType).invoke(atm, taskId) as Boolean
+            else -> {
+                val ok = runCatching {
+                    atm.javaClass.getMethod("setFocusedTask", Int::class.javaPrimitiveType).invoke(atm, taskId)
+                    true
+                }.getOrDefault(false)
+                // setFocusedTask only focuses; a minimised/behind window also needs to come to the front
+                runCatching {
+                    val m = atm.javaClass.methods.first { it.name == "startActivityFromRecents" }
+                    m.invoke(atm, taskId, null)
+                }.isSuccess || ok
+            }
+        }
+    }.onFailure { Log.w(tag, "taskAction $action $taskId: $it") }.getOrDefault(false)
+
+    override fun prepareDesktop(): String {
+        var reboot = false
+        for ((key, value) in listOf(
+            "enable_freeform_support" to "1",
+            "force_desktop_mode_on_external_displays" to "1",
+            "force_resizable_activities" to "1",
+        )) {
+            val now = sh("settings", "get", "global", key).trim()
+            if (now != value) {
+                sh("settings", "put", "global", key, value)
+                // freeform support and desktop mode are read when the system starts
+                if (key != "force_resizable_activities") reboot = true
+            }
+        }
+        val supported = runCatching {
+            val atm = serviceInterface("activity_task", "android.app.IActivityTaskManager")
+            atm.javaClass.methods.firstOrNull { it.name == "supportsFreeform" }?.invoke(atm) as? Boolean
+        }.getOrNull()
+        Log.i(tag, "prepareDesktop: reboot=$reboot freeform=$supported")
+        return if (reboot && supported != true) "reboot" else "ok"
+    }
+
+    override fun injectMouse(
+        displayId: Int, action: Int, x: Float, y: Float, buttons: Int, actionButton: Int,
+        vscroll: Float, hscroll: Float, metaState: Int,
+    ): Boolean {
+        val now = android.os.SystemClock.uptimeMillis()
+        if (action == MotionEvent.ACTION_DOWN) mouseDownTime = now
+        val props = arrayOf(MotionEvent.PointerProperties().apply { id = 0; toolType = MotionEvent.TOOL_TYPE_MOUSE })
+        val coords = arrayOf(MotionEvent.PointerCoords().apply {
+            this.x = x
+            this.y = y
+            pressure = if (buttons != 0) 1f else 0f
+            size = 1f
+            if (action == MotionEvent.ACTION_SCROLL) {
+                setAxisValue(MotionEvent.AXIS_VSCROLL, vscroll)
+                setAxisValue(MotionEvent.AXIS_HSCROLL, hscroll)
+            }
+        })
+        val pressed = action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_MOVE ||
+            action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_BUTTON_PRESS || action == MotionEvent.ACTION_BUTTON_RELEASE
+        val ev = MotionEvent.obtain(
+            if (pressed) mouseDownTime else now, now, action, 1, props, coords, metaState, buttons,
+            1f, 1f, 0, 0, android.view.InputDevice.SOURCE_MOUSE, 0,
+        )
+        if (actionButton != 0) {
+            runCatching { MotionEvent::class.java.getMethod("setActionButton", Int::class.javaPrimitiveType).invoke(ev, actionButton) }
+        }
+        return try { inject(ev, displayId) } finally { ev.recycle() }
+    }
+
+    @Volatile private var mouseDownTime = 0L
+
+    private fun sh(vararg cmd: String): String {
+        val p = ProcessBuilder(*cmd).redirectErrorStream(true).start()
+        val out = p.inputStream.bufferedReader().readText()
+        p.waitFor(10, TimeUnit.SECONDS)
+        return out
+    }
+
     override fun injectMotion(event: MotionEvent, displayId: Int): Boolean = inject(event, displayId)
 
     override fun injectKey(event: KeyEvent, displayId: Int): Boolean = inject(event, displayId, INJECT_WAIT_FOR_RESULT)
@@ -340,6 +483,10 @@ class PrivilegedService : IPrivileged.Stub() {
 
     companion object {
         private const val FLAG_SUPPORTS_TOUCH = 1 shl 6
+        private const val FLAG_DESTROY_CONTENT_ON_REMOVAL = 1 shl 8
+        private const val FLAG_SHOULD_SHOW_SYSTEM_DECORATIONS = 1 shl 9
+        private const val WINDOWING_MODE_FREEFORM = 5
+        private const val ACTIVITY_TYPE_HOME = 2
         private const val FLAG_TRUSTED = 1 shl 10
         private const val FLAG_OWN_DISPLAY_GROUP = 1 shl 11
         private const val FLAG_ALWAYS_UNLOCKED = 1 shl 12

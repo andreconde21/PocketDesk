@@ -28,6 +28,9 @@ object SelfHost {
         val authority = args.getOrNull(0) ?: error("usage: SelfHost <authority>")
         val apk = System.getenv("CLASSPATH")?.let(::File)
         Looper.prepareMainLooper()
+        // app_process has no ActivityThread: build the system context here, on the main looper.
+        // Built lazily on a binder thread it fails ("Can't create handler… Looper.prepare()").
+        PrivilegedService.shellContext()
         val service = PrivilegedService()
         val handler = Handler(Looper.getMainLooper())
         println("SelfHost uid=${android.os.Process.myUid()} pid=${android.os.Process.myPid()} -> $authority")

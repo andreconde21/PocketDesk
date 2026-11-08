@@ -3,8 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="robots" content="noindex">
-  <title>Get CarMirror</title>
+  <title>Get PocketDesk</title>
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/style.css">
   <style>
@@ -18,35 +17,30 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>CarMirror for Android</h1>
-    <p class="muted" id="ver"></p>
-    <p><a class="btn primary" id="dl" href="/download/carmirror.apk">Download the APK</a></p>
-    <p class="muted small">New here? <a href="/about">What CarMirror is and how it works</a>.</p>
+    <h1>PocketDesk for Android</h1>
+    <p><a class="btn primary" href="https://github.com/andreconde21/PocketDesk/releases/latest/download/pocketdesk.apk">Download the APK</a></p>
+    <p class="muted small">Android 11 or newer. New here? <a href="/about">What PocketDesk is and how it works</a>. All versions: <a href="https://github.com/andreconde21/PocketDesk/releases">GitHub releases</a>.</p>
     <h2>On the phone (once)</h2>
     <ol>
       <li>Install the APK. Your browser will ask to allow installing apps from it.</li>
-      <li>Open CarMirror and turn on <b>Touch from the car</b> (Accessibility). If the switch is greyed out: App info → ⋮ → <b>Allow restricted settings</b>.</li>
-      <li>Allow <b>Display over other apps</b>, and <b>Let CarMirror run in the background</b>.</li>
-      <li>Pick the apps in <b>Apps in the car</b>.</li>
-      <li>Recommended: <a href="https://github.com/RikkaApps/Shizuku/releases">Shizuku</a>, for the car hotspot (direct link), car-sized app screens and split view.</li>
-      <li>Without Shizuku: allow <b>Sound in the car</b> and tap <b>Start sharing</b>.</li>
-      <li>Optional: <b>Start with the car</b>, then pick the car's Bluetooth. CarMirror starts and stops with the car.</li>
-      <li>Optional: <b>Notification access</b> for directions and notifications on the car screen, and the mic for <b>voice typing</b>.</li>
+      <li>Turn on Developer options: Settings → About phone → tap <b>Build number</b> seven times.</li>
+      <li>Open PocketDesk. Under <b>Desktop helper</b> tap <b>Pair</b>: Wireless debugging opens. Turn it on, tap <b>Pair device with pairing code</b>, pull down the notification shade and type the code into the PocketDesk notification.</li>
+      <li>Under <b>Desktop windows</b> tap <b>Turn on</b>, then restart the phone once.</li>
+      <li>Under Advanced, <b>Allow background</b>, so the helper can start after a restart.</li>
     </ol>
-    <h2>In the car</h2>
+    <h2>On the screen</h2>
     <ol>
-      <li>Phone hotspot on, car connected to it.</li>
-      <li>Car browser: <code>carmirror.outsmartis.dev</code>, then type the code from the phone app (first time only).</li>
+      <li>Open <a href="https://pocketdesk.outsmartis.dev/"><code>pocketdesk.outsmartis.dev</code></a> in Chrome, Edge or Safari on the laptop, mini PC or TV.</li>
+      <li>Type the 6-digit code from the phone app (first time only).</li>
+      <li>Click into the desktop to type there. Full screen: the button on the taskbar or F11.</li>
     </ol>
-    <p class="muted small">Updating? Install the new APK over the old one: pairing and settings are kept.</p>
+    <h2>Shortcuts</h2>
+    <ul>
+      <li><b>Windows key</b>: app menu (type to search, Enter to open).</li>
+      <li><b>Esc</b>: Back. <b>Ctrl+V</b>: paste the computer's clipboard.</li>
+      <li>Drag a window's top bar to move it, its edges to resize; the taskbar buttons switch and close windows.</li>
+    </ul>
+    <p><a href="https://pocketdesk.outsmartis.dev/diag">Check this browser</a> · <a href="/about">About PocketDesk</a></p>
   </div>
-  <script>
-    fetch('/api/version', { cache: 'no-store' }).then((r) => r.json()).then((v) => {
-      const a = v.apk;
-      document.getElementById('ver').textContent = a ? `Version ${a.versionName || '?'}` : 'APK not uploaded yet';
-      // a versioned link so phones never install a cached older APK
-      if (a && a.versionName) document.getElementById('dl').href = '/download/carmirror.apk?v=' + encodeURIComponent(a.versionName);
-    }).catch(() => {});
-  </script>
 </body>
 </html>

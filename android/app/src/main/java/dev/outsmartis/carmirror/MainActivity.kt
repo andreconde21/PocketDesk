@@ -78,72 +78,44 @@ class MainActivity : ComponentActivity() {
         ShizukuBridge.bindIfPossible()
     }
 
+    /** "ready", "reboot" (turned on, waiting for a phone restart) or "off". */
+    private fun desktopState(): String {
+        val r = contentResolver
+        val on = Settings.Global.getInt(r, "enable_freeform_support", 0) == 1 &&
+            Settings.Global.getInt(r, "force_desktop_mode_on_external_displays", 0) == 1
+        if (!on) return "off"
+        val setAt = getSharedPreferences("desk", MODE_PRIVATE).getLong("setAt", 0)
+        val bootedAt = System.currentTimeMillis() - android.os.SystemClock.elapsedRealtime()
+        return if (setAt == 0L || bootedAt > setAt) "ready" else "reboot"
+    }
+
     @Composable
     private fun Screen() {
         val running by AppState.serviceRunning.collectAsState()
         val server by AppState.server.collectAsState()
         val online by AppState.serverOnline.collectAsState()
         val code by AppState.pairCode.collectAsState()
-        val pairedCars by AppState.pairedCars.collectAsState()
-        val car by AppState.car.collectAsState()
+        val paired by AppState.pairedCars.collectAsState()
+        val screen by AppState.car.collectAsState()
         val lastError by AppState.lastError.collectAsState()
-        val cands by AppState.localCandidates.collectAsState()
-        val projectionOn by AppState.projection.collectAsState()
         val shizukuState by AppState.shizuku.collectAsState()
-        val hotspot by AppState.carHotspot.collectAsState()
-        val touchOnFlow by AppState.touch.collectAsState()
-        var touchOn by remember { mutableStateOf(TouchService.isEnabled(this)) }
-        var overlayOn by remember { mutableStateOf(Settings.canDrawOverlays(this)) }
-        var audioOn by remember { mutableStateOf(checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) }
-        var notifsOn by remember { mutableStateOf(CarNotifications.isEnabled(this)) }
-        var addresses by remember { mutableStateOf(localAddresses()) }
-        val allApps = remember { Apps.launchable(this) }
-        var favorites by remember { mutableStateOf(Apps.favorites(this, prefs).map { it.pkg }.toSet()) }
-        var filter by remember { mutableStateOf("") }
+        var desk by remember { mutableStateOf(desktopState()) }
+        var deskMsg by remember { mutableStateOf("") }
         var showSetup by remember { mutableStateOf(false) }
         var showPairing by remember { mutableStateOf(false) }
-        var showApps by remember { mutableStateOf(false) }
         var showAdvanced by remember { mutableStateOf(false) }
-        var carBt by remember { mutableStateOf(prefs.carBluetooth) }
-        var pickingCar by remember { mutableStateOf(false) }
-        if (pickingCar) {
-            val devices = remember { CarBluetooth.bonded(this@MainActivity) }
-            androidx.compose.material3.AlertDialog(
-                onDismissRequest = { pickingCar = false },
-                title = { Text("Which is the car?") },
-                text = {
-                    Column {
-                        if (devices.isEmpty()) Text("No paired Bluetooth devices found.")
-                        devices.forEach { (addr, name) ->
-                            TextButton(onClick = {
-                                prefs.carBluetooth = addr
-                                prefs.carBluetoothName = name
-                                carBt = addr
-                                pickingCar = false
-                            }) { Text(name) }
-                        }
-                    }
-                },
-                confirmButton = { TextButton(onClick = { pickingCar = false }) { Text("Cancel") } },
-            )
-        }
 
         LaunchedEffect(Unit) {
             while (true) {
-                addresses = localAddresses()
-                touchOn = touchOnFlow || TouchService.isEnabled(this@MainActivity)
-                overlayOn = Settings.canDrawOverlays(this@MainActivity)
-                audioOn = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-                notifsOn = CarNotifications.isEnabled(this@MainActivity)
                 ShizukuBridge.refresh()
+                desk = desktopState()
                 delay(3000)
             }
         }
 
-        val shizukuOn = shizukuState == ShizukuState.READY
-        // what the car path needs: touch + opening apps always; without Shizuku also screen sharing + sound permission
-        val setupDone = touchOn && overlayOn && (shizukuOn || audioOn)
-        val carHotspotOn = hotspot?.startsWith("On") == true
+        val helperOn = shizukuState == ShizukuState.READY
+        val setupDone = helperOn && desk == "ready"
+        val host = prefs.serverUrl.removePrefix("https://").removePrefix("http://").trimEnd('/')
 
         Scaffold { pad ->
             LazyColumn(
@@ -152,47 +124,39 @@ class MainActivity : ComponentActivity() {
             ) {
                 item {
                     Spacer(Modifier.padding(top = 8.dp))
-                    Text("CarMirror", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                    Text("PocketDesk", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                    Text("Your phone as a desktop on any screen", style = MaterialTheme.typography.bodyMedium)
                 }
 
-                // ---- status: one glance tells whether the car will work
                 item {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             val (headline, color) = when {
-                                !running -> "CarMirror is stopped" to MaterialTheme.colorScheme.error
-                                car != null -> car!! to Ok
-                                !online -> "Connecting to the server…" to MaterialTheme.colorScheme.onSurface
+                                !running -> "PocketDesk is stopped" to MaterialTheme.colorScheme.error
+                                screen != null -> screen!!.replace("car browser", "Screen").replace("Tesla", "Screen") to Ok
                                 !setupDone -> "Finish the setup below" to MaterialTheme.colorScheme.error
-                                pairedCars == 0 -> "Pair your car below" to MaterialTheme.colorScheme.onSurface
-                                else -> "Ready for the car" to Ok
+                                !online -> "Connecting to the server…" to MaterialTheme.colorScheme.onSurface
+                                paired == 0 -> "Pair a screen below" to MaterialTheme.colorScheme.onSurface
+                                else -> "Ready: open $host on the screen" to Ok
                             }
                             Text(headline, fontSize = 21.sp, fontWeight = FontWeight.Bold, color = color)
+                            StatusLine(ok = helperOn, text = if (helperOn) "Desktop helper running" else "Desktop helper not running")
                             StatusLine(
-                                ok = carHotspotOn,
-                                text = when {
-                                    carHotspotOn -> "Hotspot: car mode"
-                                    hotspot != null && hotspot!!.startsWith("Couldn") -> "Hotspot: $hotspot"
-                                    hotspot != null -> "Hotspot: ${hotspot!!}"
-                                    shizukuOn -> "Hotspot: turn it on, CarMirror sets it up for the car"
-                                    else -> "Hotspot: normal (start Shizuku for car mode)"
+                                ok = desk == "ready",
+                                text = when (desk) {
+                                    "ready" -> "Desktop windows on"
+                                    "reboot" -> "Desktop windows: restart the phone once"
+                                    else -> "Desktop windows off"
                                 },
                             )
-                            StatusLine(
-                                ok = shizukuOn,
-                                text = if (shizukuOn) "Apps on their own car-sized screens" else "Phone screen mirrored (Shizuku off)",
-                            )
-                            if (!running) {
-                                Button(onClick = { MirrorService.start(this@MainActivity) }) { Text("Start") }
-                            }
+                            if (!running) Button(onClick = { MirrorService.start(this@MainActivity) }) { Text("Start") }
                         }
                     }
                 }
 
-                // ---- setup: folds away once done
                 item {
                     Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Header(
                                 title = if (setupDone) "✓ Setup done" else "Setup",
                                 open = showSetup || !setupDone,
@@ -200,149 +164,70 @@ class MainActivity : ComponentActivity() {
                             ) { showSetup = !showSetup }
                             if (showSetup || !setupDone) {
                                 Step(
-                                    done = touchOn,
-                                    title = "Touch from the car",
-                                    body = "Turn on CarMirror under Settings → Accessibility → Installed apps. " +
-                                        "If the switch is greyed out: App info → ⋮ (top right) → Allow restricted settings, then try again.",
+                                    done = helperOn,
+                                    title = "1. Desktop helper",
+                                    body = "Creating a second screen needs a helper with adb rights. PocketDesk starts it itself: " +
+                                        "pair once with Wireless debugging (no computer needed) and it starts again after every restart, " +
+                                        "as soon as the phone is on Wi-Fi. Turn on Developer options first (tap Build number 7 times).",
                                 ) {
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        OutlinedButton(onClick = { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }) { Text("Accessibility") }
-                                        OutlinedButton(onClick = {
-                                            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
-                                        }) { Text("App info") }
-                                    }
-                                }
-                                Step(
-                                    done = overlayOn,
-                                    title = "Open apps from the car",
-                                    body = "Allow \"Display over other apps\", so tapping an app in the car opens it on the phone.",
-                                ) {
-                                    OutlinedButton(onClick = {
-                                        startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
-                                    }) { Text("Allow") }
-                                }
-                                Step(
-                                    done = shizukuOn,
-                                    title = "Shizuku (recommended)",
-                                    body = when (shizukuState) {
-                                        ShizukuState.READY -> "Running: car hotspot, car-sized app screens and sound all work."
-                                        ShizukuState.NOT_INSTALLED -> "Install Shizuku and start it with Wireless debugging (needs Wi-Fi, once after each phone restart). " +
-                                            "It enables the car hotspot (the Tesla can then reach the phone directly) and car-sized app screens."
-                                        ShizukuState.NOT_RUNNING -> "Not running (phone restarted?). Start it when you're on Wi-Fi."
-                                        ShizukuState.NO_PERMISSION -> "Allow CarMirror in Shizuku."
-                                        else -> ShizukuBridge.describe(shizukuState)
-                                    },
-                                ) {
-                                    when (shizukuState) {
-                                        ShizukuState.NOT_INSTALLED -> OutlinedButton(onClick = { openShizukuStore() }) { Text("Get Shizuku") }
-                                        ShizukuState.NOT_RUNNING, ShizukuState.ERROR -> OutlinedButton(onClick = { openShizuku() }) { Text("Open Shizuku") }
-                                        ShizukuState.NO_PERMISSION -> Button(onClick = { ShizukuBridge.requestPermission() }) { Text("Allow") }
-                                        else -> {}
-                                    }
-                                }
-                                if (!shizukuOn) {
-                                    Step(
-                                        done = audioOn,
-                                        title = "Sound in the car (without Shizuku)",
-                                        body = "Sound rides on screen sharing and needs the audio permission (Android calls it microphone; " +
-                                            "CarMirror only captures what apps play). It also turns on voice typing from the car.",
-                                    ) {
-                                        OutlinedButton(onClick = { requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 2) }) { Text("Allow") }
-                                    }
-                                    Step(
-                                        done = projectionOn,
-                                        title = "Share the screen (without Shizuku)",
-                                        body = if (projectionOn) "Sharing until you stop it." else "Once per drive; the phone also asks when the car opens an app.",
-                                    ) {
-                                        if (projectionOn) {
-                                            OutlinedButton(onClick = { Projection.stop() }) { Text("Stop sharing") }
-                                        } else {
-                                            OutlinedButton(onClick = {
-                                                if (!running) MirrorService.start(this@MainActivity)
-                                                Projection.requestConsent(this@MainActivity)
-                                            }) { Text("Start sharing") }
+                                    SelfStartBlock(shizukuState)
+                                    if (ShizukuBridge.isShizukuInstalled() && shizukuState != ShizukuState.READY) {
+                                        Text("Or use Shizuku: " + ShizukuBridge.describe(shizukuState), style = MaterialTheme.typography.bodySmall)
+                                        when (shizukuState) {
+                                            ShizukuState.NOT_RUNNING, ShizukuState.ERROR -> OutlinedButton(onClick = { openShizuku() }) { Text("Open Shizuku") }
+                                            ShizukuState.NO_PERMISSION -> OutlinedButton(onClick = { ShizukuBridge.requestPermission() }) { Text("Allow Shizuku") }
+                                            else -> {}
                                         }
                                     }
                                 }
                                 Step(
-                                    done = carBt != null,
-                                    title = "Start with the car (optional)",
-                                    body = if (carBt != null) "Starts when the phone connects to ${prefs.carBluetoothName ?: "the car"} over Bluetooth, stops when it disconnects."
-                                    else "Pick the car's Bluetooth: CarMirror then starts and stops by itself.",
+                                    done = desk == "ready",
+                                    title = "2. Desktop windows",
+                                    body = if (desk == "reboot") "Turned on. Restart the phone once so Android picks it up."
+                                    else "Turns on Android's desktop mode for external screens: apps open in windows you can move and resize. " +
+                                        "Needs the helper, then one phone restart.",
                                 ) {
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        OutlinedButton(onClick = {
-                                            if (!CarBluetooth.hasPermission(this@MainActivity)) {
-                                                requestPermissions(arrayOf(Manifest.permission.BLUETOOTH_CONNECT), 3)
-                                            } else {
-                                                pickingCar = true
+                                    if (desk == "off") {
+                                        Button(enabled = helperOn, onClick = {
+                                            deskMsg = "Turning on…"
+                                            kotlin.concurrent.thread {
+                                                val r = runCatching { ShizukuBridge.service?.prepareDesktop() ?: error("helper not running") }
+                                                if (r.getOrNull() == "reboot") {
+                                                    getSharedPreferences("desk", MODE_PRIVATE).edit().putLong("setAt", System.currentTimeMillis()).apply()
+                                                }
+                                                runOnUiThread {
+                                                    desk = desktopState()
+                                                    deskMsg = r.exceptionOrNull()?.let { "Failed: ${it.message}" } ?: ""
+                                                }
                                             }
-                                        }) { Text(if (carBt != null) "Change" else "Choose the car") }
-                                        if (carBt != null) {
-                                            OutlinedButton(onClick = {
-                                                prefs.carBluetooth = null
-                                                prefs.carBluetoothName = null
-                                                carBt = null
-                                            }) { Text("Off") }
-                                        }
+                                        }) { Text("Turn on") }
                                     }
-                                }
-                                if (shizukuOn) {
-                                    Step(
-                                        done = audioOn,
-                                        title = "Voice typing from the car (optional)",
-                                        body = "The car's mic button types what you say into the text field on the car screen. " +
-                                            "CarMirror only listens while you use it.",
-                                    ) {
-                                        OutlinedButton(onClick = { requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 2) }) { Text("Allow") }
-                                    }
-                                }
-                                Step(
-                                    done = notifsOn,
-                                    title = "Navigation and notifications in the car (optional)",
-                                    body = "Shows the next turn from Google Maps or Waze, and new messages as short banners " +
-                                        "(banners can be turned off in the car's Settings). If the switch is greyed out: " +
-                                        "App info → ⋮ → Allow restricted settings.",
-                                ) {
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        OutlinedButton(onClick = { startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }) { Text("Notification access") }
-                                        OutlinedButton(onClick = {
-                                            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
-                                        }) { Text("App info") }
-                                    }
-                                }
-                                if (!ignoringBatteryOptimizations()) {
-                                    OutlinedButton(onClick = { requestIgnoreBatteryOptimizations() }) { Text("Let CarMirror run in the background") }
+                                    if (deskMsg.isNotEmpty()) Text(deskMsg, style = MaterialTheme.typography.bodySmall)
                                 }
                             }
                         }
                     }
                 }
 
-                // ---- pairing: folds away once a car is paired
                 item {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            val paired = pairedCars > 0
+                            val hasPair = paired > 0
                             Header(
-                                title = if (paired) "✓ Car paired" + if (pairedCars > 1) " ($pairedCars)" else "" else "Pair your car",
-                                open = showPairing || !paired,
-                                color = if (paired) Ok else MaterialTheme.colorScheme.onSurface,
+                                title = if (hasPair) "✓ Screen paired" + if (paired > 1) " ($paired)" else "" else "3. Pair a screen",
+                                open = showPairing || !hasPair,
+                                color = if (hasPair) Ok else MaterialTheme.colorScheme.onSurface,
                             ) { showPairing = !showPairing }
-                            if (showPairing || !paired) {
+                            if (showPairing || !hasPair) {
                                 if (online && code != null) {
-                                    Text(
-                                        "In the car's browser open ${prefs.serverUrl.removePrefix("https://")} and type:",
-                                        style = MaterialTheme.typography.bodySmall,
-                                    )
+                                    Text("On the monitor, TV or laptop, open $host in Chrome or Edge and type:", style = MaterialTheme.typography.bodyMedium)
                                     Text(code!!.chunked(3).joinToString(" "), fontSize = 40.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         OutlinedButton(onClick = { MirrorService.start(this@MainActivity, MirrorService.ACTION_NEW_CODE) }) { Text("New code") }
-                                        if (paired) {
-                                            OutlinedButton(onClick = { MirrorService.start(this@MainActivity, MirrorService.ACTION_UNPAIR_ALL) }) { Text("Unpair all") }
-                                        }
+                                        if (hasPair) OutlinedButton(onClick = { MirrorService.start(this@MainActivity, MirrorService.ACTION_UNPAIR_ALL) }) { Text("Unpair all") }
                                     }
                                 } else {
+                                    Text(if (running) "Connecting to the server…" else "Start PocketDesk first.", style = MaterialTheme.typography.bodyMedium)
                                     Text("Server: $server", style = MaterialTheme.typography.bodySmall)
                                 }
                             }
@@ -350,94 +235,31 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // ---- apps: list only when opened
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Header(title = "Apps in the car (${favorites.size})", open = showApps) { showApps = !showApps }
-                            if (showApps) {
-                                OutlinedTextField(
-                                    value = filter,
-                                    onValueChange = { filter = it },
-                                    label = { Text("Search apps") },
-                                    singleLine = true,
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                            }
-                        }
-                    }
-                }
-                if (showApps) {
-                    val shown = allApps
-                        .filter { filter.isBlank() || it.label.contains(filter, ignoreCase = true) || it.pkg.contains(filter, ignoreCase = true) }
-                        .sortedBy { if (it.pkg in favorites) 0 else 1 }
-                    items(shown, key = { it.pkg }) { app ->
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                            Checkbox(checked = app.pkg in favorites, onCheckedChange = { on ->
-                                Apps.setFavorite(prefs, Apps.favorites(this@MainActivity, prefs), app.pkg, on)
-                                favorites = Apps.favorites(this@MainActivity, prefs).map { it.pkg }.toSet()
-                            })
-                            Column {
-                                Text(app.label)
-                                Text(app.pkg, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
+                    Section("What the screen needs") {
+                        Text(
+                            "A browser on the screen's side: a laptop, a mini PC, a smart TV browser, or a Google TV / " +
+                                "Chromecast with Google TV. Connect the keyboard and mouse to that device. Phone and screen " +
+                                "on the same Wi-Fi gives the sharpest, quickest picture. A plain Miracast dongle won't work: it " +
+                                "can only mirror the phone's own screen.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
                     }
                 }
 
-                // ---- advanced & diagnostics
                 item {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Header(title = "Advanced", open = showAdvanced) { showAdvanced = !showAdvanced }
-                            if (showAdvanced) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("CarMirror running", modifier = Modifier.weight(1f))
-                                    Switch(checked = running, onCheckedChange = { on ->
-                                        if (on) MirrorService.start(this@MainActivity) else MirrorService.stop(this@MainActivity)
-                                    })
-                                }
-                                if (shizukuOn) {
-                                    var auto by remember { mutableStateOf(prefs.autoCarHotspot) }
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Column(Modifier.weight(1f)) {
-                                            Text("Car hotspot automatically")
-                                            Text(
-                                                "When the hotspot comes on, restart it on 9.9.0.x so the Tesla can reach the phone. " +
-                                                    "Only one device can join while it's in car mode: turn this off to share the hotspot with others.",
-                                                style = MaterialTheme.typography.bodySmall,
-                                            )
-                                        }
-                                        Switch(checked = auto, onCheckedChange = {
-                                            auto = it
-                                            prefs.autoCarHotspot = it
-                                        })
-                                    }
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        if (carHotspotOn) {
-                                            OutlinedButton(onClick = { CarHotspot.stop() }) { Text("Back to normal hotspot") }
-                                        } else {
-                                            OutlinedButton(onClick = { CarHotspot.start() }) { Text("Car hotspot now") }
-                                        }
-                                    }
-                                }
-                                Advanced()
-                                Text("Server: $server", style = MaterialTheme.typography.bodySmall)
-                                Text("Phone addresses: " + addresses.joinToString(", ").ifEmpty { "none" }, style = MaterialTheme.typography.bodySmall)
-                                if (cands.isNotEmpty()) Text("Last link candidates: " + cands.joinToString(", "), style = MaterialTheme.typography.bodySmall)
-                                if (lastError != null) {
-                                    Text("Last problem: $lastError", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                                }
-                                Text(
-                                    "Version ${BuildConfig.VERSION_NAME} · built ${BuildConfig.BUILT_AT.take(16)}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
+                            if (showAdvanced) Advanced()
                         }
                     }
-                    Spacer(Modifier.padding(bottom = 24.dp))
                 }
+
+                lastError?.let { err ->
+                    item { Text("Last problem: $err", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+                }
+                item { Spacer(Modifier.padding(bottom = 24.dp)) }
             }
         }
     }
@@ -462,6 +284,7 @@ class MainActivity : ComponentActivity() {
     private fun Advanced() {
         var url by remember { mutableStateOf(prefs.serverUrl) }
         var autostart by remember { mutableStateOf(prefs.startOnLaunch) }
+        val running by AppState.serviceRunning.collectAsState()
         OutlinedTextField(value = url, onValueChange = { url = it }, label = { Text("Server URL") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = {
@@ -469,40 +292,29 @@ class MainActivity : ComponentActivity() {
                 MirrorService.stop(this@MainActivity)
                 window.decorView.postDelayed({ MirrorService.start(this@MainActivity) }, 800)
             }) { Text("Save & restart") }
+            if (running) OutlinedButton(onClick = { MirrorService.stop(this@MainActivity) }) { Text("Stop") }
         }
-        var appsMode by remember { mutableStateOf(prefs.appsMode) }
-        val shizuku by AppState.shizuku.collectAsState()
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Per-app screens when Shizuku runs")
-                Text(
-                    "Each app gets its own screen at the car's exact size (no black bars, split view, phone stays free). " +
-                        "Used automatically while Shizuku is running; otherwise the phone screen is mirrored.",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-            Switch(checked = appsMode, onCheckedChange = {
-                appsMode = it
-                prefs.appsMode = it
-                if (it) ShizukuBridge.bindIfPossible()
-            })
-        }
-        if (appsMode) {
-            Text("Shizuku: " + ShizukuBridge.describe(shizuku), style = MaterialTheme.typography.bodySmall)
-            when (shizuku) {
-                ShizukuState.NOT_INSTALLED -> OutlinedButton(onClick = { openShizukuStore() }) { Text("Get Shizuku") }
-                ShizukuState.NOT_RUNNING, ShizukuState.ERROR -> OutlinedButton(onClick = { openShizuku() }) { Text("Open Shizuku") }
-                ShizukuState.NO_PERMISSION -> OutlinedButton(onClick = { ShizukuBridge.requestPermission() }) { Text("Grant Shizuku access") }
-                else -> {}
-            }
-        }
-        SelfStartBlock(shizuku)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Start when the app opens", modifier = Modifier.weight(1f))
             Switch(checked = autostart, onCheckedChange = {
                 autostart = it
                 prefs.startOnLaunch = it
             })
+        }
+        var offAfter by remember { mutableStateOf(SelfAdb.prefs(this@MainActivity).getBoolean("wifiDebugOffAfter", true)) }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Wireless debugging off after starting the helper")
+                Text("The helper keeps running; nothing stays open on the network.", style = MaterialTheme.typography.bodySmall)
+            }
+            Switch(checked = offAfter, onCheckedChange = {
+                offAfter = it
+                SelfAdb.prefs(this@MainActivity).edit().putBoolean("wifiDebugOffAfter", it).apply()
+            })
+        }
+        if (!ignoringBatteryOptimizations()) {
+            Text("Battery: let PocketDesk run in the background so the helper can start after a restart.", style = MaterialTheme.typography.bodySmall)
+            OutlinedButton(onClick = { requestIgnoreBatteryOptimizations() }) { Text("Allow background") }
         }
     }
 
@@ -526,7 +338,8 @@ class MainActivity : ComponentActivity() {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = {
                 PairingNotification.show(this@MainActivity)
-                runCatching { startActivity(Intent("android.settings.APPLICATION_DEVELOPMENT_SETTINGS")) }
+                // its own task: reopening PocketDesk later must not land on Developer options
+                runCatching { startActivity(Intent("android.settings.APPLICATION_DEVELOPMENT_SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
             }) { Text(if (paired) "Pair again" else "Pair") }
             if (paired) Button(onClick = {
                 status = "Starting…"

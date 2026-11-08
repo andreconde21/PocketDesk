@@ -1,8 +1,8 @@
 {
-  "name": "carmirror-server",
+  "name": "pocketdesk-server",
   "version": "1.0.0",
   "private": true,
-  "description": "Signaling server + car web client for CarMirror",
+  "description": "Signaling server + desktop web client for PocketDesk",
   "type": "module",
   "main": "server.js",
   "scripts": {

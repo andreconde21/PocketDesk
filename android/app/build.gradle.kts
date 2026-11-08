@@ -26,12 +26,12 @@ android {
 
     signingConfigs {
         create("release") {
-            val ks = file(System.getenv("CARMIRROR_KEYSTORE") ?: "${rootDir}/carmirror.jks")
+            val ks = file(System.getenv("POCKETDESK_KEYSTORE") ?: "${rootDir}/pocketdesk.jks")
             if (ks.exists()) {
                 storeFile = ks
-                storePassword = System.getenv("CARMIRROR_KEYSTORE_PASSWORD")
-                keyAlias = "carmirror"
-                keyPassword = System.getenv("CARMIRROR_KEYSTORE_PASSWORD")
+                storePassword = System.getenv("POCKETDESK_KEYSTORE_PASSWORD")
+                keyAlias = "pocketdesk"
+                keyPassword = System.getenv("POCKETDESK_KEYSTORE_PASSWORD")
             }
         }
     }

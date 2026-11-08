@@ -53,7 +53,7 @@ class Prefs(context: Context) {
 
     /** Switch the hotspot to car mode (9.9.0.x) automatically whenever it's on and Shizuku runs. */
     var autoCarHotspot: Boolean
-        get() = sp.getBoolean("autoCarHotspot", true)
+        get() = sp.getBoolean("autoCarHotspot", false)
         set(v) = sp.edit().putBoolean("autoCarHotspot", v).apply()
 
     /** Bluetooth address of the car: CarMirror starts when the phone connects to it, stops when it disconnects. */

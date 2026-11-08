@@ -2,134 +2,119 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
   <meta name="theme-color" content="#0b0d10">
-  <title>CarMirror</title>
+  <title>PocketDesk</title>
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/desk.css">
 </head>
 <body>
-  <div id="app">
-    <header id="topbar">
-      <div class="brand"><span id="dot" class="dot"></span><span id="status">Starting…</span></div>
-      <button id="nav" class="nav-card" hidden title="Navigation">
-        <img class="nav-icon" alt=""><span class="nav-title"></span><span class="nav-text"></span>
-      </button>
-      <div class="top-actions">
-        <button id="btn-layout" class="chip" hidden>Split</button>
-        <button id="btn-immersive" class="chip" hidden title="Hide bars">Hide bars</button>
-        <button id="btn-settings" class="chip" title="Settings">Settings</button>
-      </div>
-    </header>
+  <main id="stage" class="stage">
+    <canvas id="screen" tabindex="0" hidden></canvas>
 
-    <main id="main">
-      <!-- pair screen -->
-      <section id="screen-pair" class="screen" hidden>
-        <div class="card">
-          <h1>Pair with your phone</h1>
-          <p class="muted">Open <b>CarMirror</b> on your phone and type the 6-digit code it shows.</p>
-          <div id="code-display" class="code-display">______</div>
-          <div class="keypad" id="keypad"></div>
-          <p id="pair-error" class="error"></p>
-        </div>
-      </section>
+    <section id="pair" class="panel" hidden>
+      <img src="/icon.svg" alt="" width="56" height="56">
+      <h1>Pair with your phone</h1>
+      <p class="muted">Open <b>PocketDesk</b> on the phone and type the 6-digit code it shows.</p>
+      <div id="code" class="code" aria-live="polite"></div>
+      <input id="code-input" inputmode="numeric" autocomplete="off" maxlength="6" aria-label="Pairing code">
+      <div id="keypad" class="keypad"></div>
+      <p id="pair-error" class="error"></p>
+      <p class="muted small">No PocketDesk yet? <a href="/get">Get the app</a> · <a href="/about">What is this?</a></p>
+    </section>
 
-      <!-- waiting / message screen -->
-      <section id="screen-msg" class="screen" hidden>
-        <div class="card center">
-          <div class="spinner" id="msg-spinner"></div>
-          <h1 id="msg-title">Connecting…</h1>
-          <p id="msg-body" class="muted"></p>
-          <div id="msg-actions"></div>
-        </div>
-      </section>
+    <section id="msg" class="panel" hidden>
+      <div class="spinner" id="msg-spinner"></div>
+      <h1 id="msg-title">Connecting…</h1>
+      <p id="msg-body" class="muted"></p>
+      <div id="msg-actions" class="actions"></div>
+    </section>
 
-      <!-- panes -->
-      <section id="screen-panes" class="screen panes" hidden></section>
-    </main>
+    <div id="hint" class="hint" hidden></div>
+  </main>
 
-    <button id="btn-show-bars" class="show-bars" hidden title="Show bars">⌃</button>
-
-    <dialog id="settings">
-      <form method="dialog" class="settings">
-        <h2>Settings</h2>
-        <label>Video quality
-          <select id="set-bitrate">
-            <option value="4">Data saver · 4 Mbps</option>
-            <option value="8">Balanced · 8 Mbps</option>
-            <option value="12">High · 12 Mbps</option>
-            <option value="20">Max · 20 Mbps</option>
-          </select>
-        </label>
-        <label>Frame rate
-          <select id="set-fps">
-            <option value="30">30 fps</option>
-            <option value="60">60 fps</option>
-          </select>
-        </label>
-        <label id="row-scale">Text size on the car screen
-          <select id="set-scale">
-            <option value="1.0">Small</option>
-            <option value="1.25">Medium</option>
-            <option value="1.5">Large</option>
-            <option value="1.75">Extra large</option>
-          </select>
-        </label>
-        <label class="row"><input type="checkbox" id="set-relay"> Connect through the server when the direct link fails (uses mobile data both ways)</label>
-        <label class="row"><input type="checkbox" id="set-sound"> Sound through the car (the phone sends its audio; Tesla plays the browser). The speaker on an app mutes just that app, and its music stays on the phone (Bluetooth)</label>
-        <label>On-screen keyboard
-          <select id="set-kbd">
-            <option value="auto">Auto: hidden while a physical keyboard is in use</option>
-            <option value="on">Always show</option>
-            <option value="off">Never show (physical keyboard only)</option>
-          </select>
-        </label>
-        <label class="row"><input type="checkbox" id="set-notifs"> Notifications from the phone (short banners; needs notification access on the phone)</label>
-        <label class="row"><input type="checkbox" id="set-focus"> Focus mode: hide the phone's status bar, navigation bar and home screen</label>
-        <label class="row"><input type="checkbox" id="set-stats"> Show stats overlay</label>
-        <p class="muted small">Changing quality restarts what is showing (a second or two).</p>
-        <div class="settings-actions">
-          <button value="forget" id="btn-forget" class="danger">Unpair this car</button>
-          <button value="close" class="primary">Done</button>
-        </div>
-        <p class="muted small" id="about"></p>
-      </form>
-    </dialog>
-
-    <div id="toast" class="toast" hidden></div>
-    <button id="notif" class="notif" hidden>
-      <img class="notif-icon" alt="">
-      <span class="notif-body"><b class="notif-title"></b><span class="notif-text"></span></span>
+  <nav id="taskbar" class="taskbar" aria-label="Taskbar">
+    <button id="btn-apps" class="tb-btn apps" title="Apps (Windows key)" aria-haspopup="true">
+      <svg viewBox="0 0 24 24" width="20" height="20"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
     </button>
+    <button id="btn-back" class="tb-btn" title="Back (Esc)">
+      <svg viewBox="0 0 24 24" width="20" height="20"><path d="M15 5l-7 7 7 7" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button id="btn-home" class="tb-btn" title="Desktop">
+      <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="7" fill="none" stroke-width="2.2"/></svg>
+    </button>
+    <div id="tasks" class="tasks"></div>
+    <div class="tb-right">
+      <button id="btn-sound" class="tb-btn" title="Sound">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="wave" d="M16 8.5a5 5 0 010 7M18.5 6a8.5 8.5 0 010 12" fill="none" stroke-width="2" stroke-linecap="round"/><path class="mute" d="M16 9l5 6M21 9l-5 6" fill="none" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <button id="btn-full" class="tb-btn" title="Full screen (F11)">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <button id="btn-settings" class="tb-btn" title="Settings">
+        <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="3" fill="none" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" fill="none" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <span id="status" class="status" title=""><span class="dot"></span><span id="status-text">Starting</span></span>
+      <span id="clock" class="clock"></span>
+    </div>
+  </nav>
+
+  <div id="menu" class="menu" hidden role="dialog" aria-label="Apps">
+    <input id="menu-search" type="search" placeholder="Search apps" autocomplete="off">
+    <div id="menu-grid" class="menu-grid"></div>
   </div>
 
-  <template id="tpl-pane">
-    <div class="pane">
-      <div class="pane-bar">
-        <button class="pb back" title="Back">◀ Back</button>
-        <span class="pane-title"></span>
-        <span class="pane-stats"></span>
-        <button class="pb zoom-out" title="Smaller" hidden>A−</button>
-        <button class="pb zoom-in" title="Bigger" hidden>A+</button>
-        <button class="pb mic" title="Voice typing" aria-label="Voice typing"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg></button>
-        <button class="pb sound" title="Sound" aria-label="Sound"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path class="wave" d="M16.5 12A4.5 4.5 0 0 0 14 7.97v8.05A4.5 4.5 0 0 0 16.5 12zM14 3.23v2.06a7 7 0 0 1 0 13.42v2.06a9 9 0 0 0 0-17.54z"/><path class="slash" d="M16.5 8.5l6 6m0-6l-6 6" stroke="currentColor" stroke-width="2" fill="none"/></svg></button>
-        <button class="pb keyframe" title="Refresh picture">⟳</button>
-        <button class="pb apps" title="Apps">▦ Apps</button>
-        <button class="pb close" title="Close app">✕</button>
+  <dialog id="settings">
+    <form method="dialog" class="settings">
+      <h2>Settings</h2>
+      <label>Sharpness
+        <select id="set-maxw">
+          <option value="1280">Fast · up to 1280 px</option>
+          <option value="1920">Balanced · up to 1920 px</option>
+          <option value="2560">Sharp · up to 2560 px</option>
+        </select>
+      </label>
+      <label>Text and window size
+        <select id="set-scale">
+          <option value="0.85">Compact</option>
+          <option value="1">Normal</option>
+          <option value="1.25">Large</option>
+          <option value="1.5">Extra large (TV)</option>
+          <option value="2">Huge</option>
+        </select>
+      </label>
+      <label>Video quality
+        <select id="set-bitrate">
+          <option value="6">Light · 6 Mbps</option>
+          <option value="12">Balanced · 12 Mbps</option>
+          <option value="20">High · 20 Mbps</option>
+        </select>
+      </label>
+      <label>Frame rate
+        <select id="set-fps">
+          <option value="30">30 fps</option>
+          <option value="60">60 fps</option>
+        </select>
+      </label>
+      <label>Phone's on-screen keyboard
+        <select id="set-keyboard">
+          <option value="auto">Hidden (type on this keyboard)</option>
+          <option value="on">Show it (no keyboard here, e.g. a TV)</option>
+        </select>
+      </label>
+      <label class="row"><input type="checkbox" id="set-sound"> Play the phone's sound here</label>
+      <label class="row"><input type="checkbox" id="set-relay"> Connect through the server when the direct link fails (slower; uses internet both ways)</label>
+      <p class="muted small" id="set-stats"></p>
+      <div class="actions">
+        <button type="button" id="btn-forget" class="ghost danger">Unpair this screen</button>
+        <button value="close" class="primary">Done</button>
       </div>
-      <div class="pane-body">
-        <div class="launcher">
-          <div class="grid"></div>
-        </div>
-        <div class="stage" hidden>
-          <canvas></canvas>
-          <div class="stage-msg" hidden></div>
-        </div>
-      </div>
-    </div>
-  </template>
+    </form>
+  </dialog>
 
-  <script type="module" src="/js/app.js"></script>
+  <div id="toast" class="toast" hidden></div>
+
+  <script type="module" src="/js/desk.js"></script>
 </body>
 </html>

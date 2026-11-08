@@ -3,9 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="robots" content="noindex">
-  <meta name="description" content="CarMirror puts your Android phone's apps on the Tesla screen: fast, direct over your hotspot, built to keep playing while you drive.">
-  <title>CarMirror</title>
+    <meta name="description" content="PocketDesk turns an Android phone without DeX into a desktop on any screen: windows, mouse and keyboard, in the browser of a laptop, monitor or TV.">
+  <title>PocketDesk: a desktop from your phone</title>
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/style.css">
   <style>
@@ -50,131 +49,76 @@
   <div class="doc">
     <div class="hero">
       <img src="/icon.svg" alt="">
-      <h1>CarMirror</h1>
+      <h1>PocketDesk</h1>
     </div>
-    <p class="lead">Your Android phone's apps on the Tesla screen. Direct over your hotspot, low lag, and built to keep playing while you drive.</p>
+    <p class="lead">A real desktop from your Android phone, on any screen with a browser. Apps in windows you move and resize, your mouse and keyboard, no DeX and no video-out cable needed.</p>
     <div class="cta">
       <a class="btn primary" href="/get">Get the app</a>
-      <a class="btn" href="https://github.com/andreconde21/tesla-car-mirror">Source on GitHub</a>
+      <a class="btn" href="https://pocketdesk.outsmartis.dev/">Open the desktop</a>
+      <a class="btn" href="https://github.com/andreconde21/PocketDesk">Source on GitHub</a>
     </div>
     <figure class="shot">
-      <a href="/img/car-youtube.webp"><img src="/img/car-youtube.webp" alt="A video playing full width on the car screen through CarMirror" width="1440" height="825"></a>
-      <figcaption>The passenger's video, full width on the Tesla screen.</figcaption>
+      <a href="/img/desktop.webp"><img src="/img/desktop.webp" alt="Three Android apps in windows on a desktop, with a taskbar at the bottom" width="1280" height="800"></a>
+      <figcaption>Files, Google sign-in and Chrome side by side, running on the phone and shown in a laptop's browser.</figcaption>
     </figure>
+
+    <h2>Why</h2>
+    <p>Samsung DeX and Android's desktop mode need a phone that can send video out over USB-C. Most mid-range phones can't (the Galaxy M53 this was built for has no video out at all), and plain screen mirroring only copies the phone's portrait screen. PocketDesk gives the phone a second, desktop-sized screen of its own and shows it wherever there is a browser.</p>
 
     <h2>What it does</h2>
     <div class="features">
-      <div class="feature"><b>Any Android app</b><span>YouTube for the passenger, navigation, music, your own apps. Pick which ones show up in the car.</span></div>
-      <div class="feature"><b>Fast</b><span>Video goes straight from the phone to the car over the hotspot, decoded in hardware. The server is only a fallback when the direct link fails.</span></div>
-      <div class="feature"><b>Touch and typing</b><span>Tap and swipe on the car screen to control the phone. Type with a keyboard plugged into the car, a Bluetooth keyboard on the phone, or the on-screen keyboard. It hides by itself when a keyboard is connected.</span></div>
-      <div class="feature"><b>Voice typing</b><span>Tap the mic on the car screen and speak: the words go into the text field you tapped.</span></div>
-      <div class="feature"><b>Directions and notifications</b><span>The next turn from your navigation app shows as a small card on the car screen, and new notifications pop up for a few seconds. Both can be turned off.</span></div>
-      <div class="feature"><b>Made for driving</b><span>The picture is drawn on a canvas, not a video player, which is what the browser blocks while the car moves.</span></div>
-      <div class="feature"><b>Car-sized apps</b><span>With Shizuku running, each app gets its own screen at the Tesla's exact size, and split view for two apps side by side.</span></div>
-      <div class="feature"><b>Focus mode</b><span>Hides the phone's status bar, navigation bar and home screen, so only the app shows.</span></div>
-    </div>
-
-    <h2>Screenshots</h2>
-    <div class="gallery">
-      <figure class="shot">
-        <a href="/img/car-conductore.webp"><img src="/img/car-conductore.webp" alt="Conductore laid out for the full car screen" width="1440" height="825" loading="lazy"></a>
-        <figcaption>Conductore on its own car-sized screen (with Shizuku): the app uses the whole width.</figcaption>
-      </figure>
-      <figure class="shot">
-        <a href="/img/car-split.webp"><img src="/img/car-split.webp" alt="Split view: Conductore on the left, a video on the right" width="1440" height="825" loading="lazy"></a>
-        <figcaption>Split view: Conductore for the driver, a video for the passenger.</figcaption>
-      </figure>
-      <figure class="shot">
-        <a href="/img/car-launcher.webp"><img src="/img/car-launcher.webp" alt="The app grid on the car screen" width="1100" height="630" loading="lazy"></a>
-        <figcaption>The app grid: only the apps you picked on the phone.</figcaption>
-      </figure>
-      <figure class="shot">
-        <a href="/img/car-pair.webp"><img src="/img/car-pair.webp" alt="Pairing screen with a number pad" width="1100" height="630" loading="lazy"></a>
-        <figcaption>Pairing the car: type the code from the phone, once.</figcaption>
-      </figure>
+      <div class="feature"><b>A second screen</b><span>The phone creates a desktop at exactly your window's size. The phone's own screen stays free.</span></div>
+      <div class="feature"><b>Windows</b><span>Apps open in windows with a title bar: drag to move, pull the edges to resize, maximise, close.</span></div>
+      <div class="feature"><b>Mouse and keyboard</b><span>Hover, right-click, wheel scrolling, shortcuts. Characters follow your keyboard's layout, so ç and é just work. Esc is Back.</span></div>
+      <div class="feature"><b>Taskbar and app menu</b><span>Every app on the phone, searchable (press the Windows key), and a button per open window.</span></div>
+      <div class="feature"><b>Paste from the computer</b><span>Ctrl+V types the computer's clipboard into the phone app.</span></div>
+      <div class="feature"><b>Sound</b><span>The phone's audio plays on the screen's side.</span></div>
+      <div class="feature"><b>Starts by itself</b><span>No PC and no Shizuku after a restart: PocketDesk starts its helper through Wireless debugging and turns it off again.</span></div>
+      <div class="feature"><b>Fast</b><span>Hardware H.264 on the phone, hardware decoding in the browser, sent directly over your Wi-Fi.</span></div>
     </div>
 
     <h2>What you need</h2>
     <ul>
-      <li>An Android phone (Android 11 or newer) with mobile data and a hotspot.</li>
-      <li>A Tesla with the in-car browser. Tested on a 2023 Model Y; newer Teslas with the AMD computer work best.</li>
-      <li>Recommended: <a href="https://github.com/RikkaApps/Shizuku/releases">Shizuku</a>. With it CarMirror switches your hotspot to <b>car mode</b>, so the Tesla can reach the phone directly, and gives each app its own car-sized screen with split view. Without it, the stream goes through the server (uses mobile data).</li>
+      <li>An Android phone with Android 11 or newer. Developer options on (tap <b>Build number</b> seven times).</li>
+      <li>A screen with a current browser: a laptop, a mini PC, a smart TV's browser, or a Google TV / Chromecast with Google TV. Plug the keyboard and mouse into that device.</li>
+      <li>Phone and screen on the same Wi-Fi for the sharpest, quickest picture.</li>
     </ul>
+    <p class="note">A plain Miracast or "screen mirroring" dongle won't work: it can only copy the phone's own screen, not show a second one.</p>
 
-    <h2>Setup on the phone (once, about 5 minutes)</h2>
+    <h2>Setup (once, about five minutes)</h2>
     <div class="side">
     <div>
     <ol>
-      <li><b>Install the app</b> from <a href="/get">the download page</a>. Your browser will ask to allow installing apps from it.</li>
-      <li><b>Open CarMirror</b> and follow <b>Setup</b>:
-        <ul>
-          <li><b>Touch from the car:</b> Settings → Accessibility → Installed apps → CarMirror → on.
-            If the switch is greyed out: App info → <b>⋮</b> (top right) → <b>Allow restricted settings</b>, then try again.
-            (Android asks this for apps not installed from the Play Store.)</li>
-          <li><b>Open apps from the car:</b> allow "Display over other apps".</li>
-          <li><b>Let CarMirror run in the background</b>, so Android doesn't stop it during a drive.</li>
-          <li>Optional: <b>Navigation and notifications in the car</b>: tap <b>Notification access</b> and turn CarMirror on.</li>
-        </ul>
-      </li>
-      <li><b>Pick your apps</b> in <b>Apps in the car</b>.</li>
-      <li>Recommended: install Shizuku and start it with <b>Wireless debugging</b> (needs Wi-Fi, once after every phone restart). Then tap <b>Allow</b> in CarMirror. It turns on the car hotspot (direct link) and car-sized screens. For voice typing, also allow the mic under <b>Voice typing from the car</b>.</li>
-      <li>Without Shizuku: allow <b>Sound in the car</b>, and tap <b>Start sharing</b> before you drive.</li>
-      <li>Tip: on Samsung, a Modes &amp; Routines rule "when connected to the car's Bluetooth → turn on hotspot" makes every drive hands-free.</li>
+      <li><b>Install PocketDesk</b> from <a href="/get">the download page</a>.</li>
+      <li><b>Desktop helper:</b> in PocketDesk tap <b>Pair</b>, then in Wireless debugging tap <b>Pair device with pairing code</b> and type the code into the PocketDesk notification. That's all: no computer needed, and it starts again by itself after every restart once the phone is on Wi-Fi. (Already using Shizuku? That works too.)</li>
+      <li><b>Desktop windows:</b> tap <b>Turn on</b>, then restart the phone once.</li>
+      <li><b>On the screen:</b> open <code>pocketdesk.outsmartis.dev</code> and type the 6-digit code the phone shows. The screen remembers the phone from then on.</li>
     </ol>
     </div>
     <figure class="shot">
-      <a href="/img/phone-setup.webp"><img src="/img/phone-setup.webp" alt="The CarMirror phone app with its setup checklist and pairing code" width="540" height="1080" loading="lazy"></a>
-      <figcaption>The phone app: setup checklist and pairing code.</figcaption>
+      <a href="/img/phone.webp"><img src="/img/phone.webp" alt="The PocketDesk phone app with setup done and a screen connected" width="540" height="1200" loading="lazy"></a>
     </figure>
     </div>
 
-    <h2>In the car</h2>
-    <ol>
-      <li>Turn on the phone's hotspot and connect the car to it (car Wi-Fi settings).</li>
-      <li>Open the car's browser at <code>carmirror.outsmartis.dev</code>.</li>
-      <li>The first time, type the 6-digit code shown in the phone app. The car stays paired after that.</li>
-      <li>Tap an app. Without Shizuku, the phone asks once per drive to share its screen: tap <b>Start now</b> (or tap <b>Start sharing</b> in the phone app before you leave).</li>
-    </ol>
-    <p>In the car: <b>Hide bars</b> gives the app the whole screen, and <b>Settings</b> has video quality, frame rate, text size, focus mode, sound, the on-screen keyboard (Auto, On or Off), notifications and connecting through the server. Sound comes through the car's speakers via the browser, and the car's media card shows what's playing; its play, pause and skip buttons control the phone. The speaker on an app's bar mutes just that app, so music from the phone keeps playing over Bluetooth.</p>
-    <p>Typing: tap a text field on the car screen, then type on any keyboard, or tap the mic and speak. With the keyboard set to <b>Auto</b>, the phone's on-screen keyboard stays away while a physical keyboard is connected. Tapping the navigation card opens the navigation app.</p>
-    <p>Optional: pick the car's Bluetooth under <b>Start with the car</b> in the phone app, and CarMirror starts when the phone connects to the car and stops when it disconnects.</p>
-
-    <h2>Two modes</h2>
-    <table>
-      <tr><th></th><th>Phone screen (default)</th><th>Car-sized screens (Shizuku running)</th></tr>
-      <tr><td>Setup</td><td>Nothing extra</td><td>Shizuku started once after each phone restart (needs Wi-Fi)</td></tr>
-      <tr><td>Picture</td><td>What the phone shows. Turn it sideways for wide apps such as YouTube</td><td>Each app at the car's exact size, no black bars</td></tr>
-      <tr><td>Apps at once</td><td>One</td><td>Two, side by side (Split)</td></tr>
-      <tr><td>Phone screen</td><td>Stays on, showing the app</td><td>Free, or locked in your pocket</td></tr>
-    </table>
-    <p>CarMirror picks the mode by itself: car-sized screens when Shizuku is running, the phone screen otherwise.</p>
-
     <h2>How it works</h2>
     <div class="flow">
-      <b>Phone</b>: the app encodes the picture as H.264 in hardware →
-      <b>WebRTC</b> sends it directly over the hotspot (the server introduces the car and the phone, and relays only if the direct link fails) →
-      <b>Tesla browser</b>: WebCodecs decodes in hardware and draws on a canvas → your taps go back the same way.
+      <b>Phone</b>: a helper with adb rights creates a trusted virtual display with desktop flags (the launcher's desktop home, freeform windows) →
+      the app encodes it with the phone's hardware H.264 encoder →
+      <b>WebRTC data channel</b> over your Wi-Fi →
+      <b>browser</b>: WebCodecs decodes in hardware onto a canvas; mouse, wheel and keys go back as input events on that display.
+      The server only introduces the two sides (pairing and connection setup); the picture doesn't pass through it.
     </div>
-    <p>In car mode, nothing you watch goes through the server: it only handles pairing and helps the two find each other. Without car mode, or when the direct link fails, the stream is relayed through it.</p>
+    <p>The helper normally needs Shizuku, which has to be started again after every restart. PocketDesk instead pairs with the phone's own Wireless debugging once, grants itself the right to switch it on and off, and at boot starts the helper, then switches Wireless debugging off again.</p>
 
-    <h2>Good to know</h2>
+    <h2>Limits</h2>
     <ul>
-      <li>Apps that block screenshots (banking, Netflix and similar) show black. That's the app's choice and can't be worked around.</li>
-      <li>The Tesla browser refuses private network addresses, which every normal phone hotspot uses. That's why CarMirror switches the hotspot to <b>car mode</b> (a 9.9.0.x network, needs Shizuku). In car mode only the car can join the hotspot; you can turn this off in the app's Advanced section.</li>
-      <li>In car mode, video uses no mobile data: it stays between the phone and the car. Through the server, it counts twice (phone upload and car download).</li>
-      <li>Watching video while driving is the passenger's job. Follow your local laws.</li>
-      <li>This is a hobby project, built in a few days and offered as is.</li>
+      <li>Starting by itself after a restart needs the phone connected to a Wi-Fi network (Wireless debugging only runs on Wi-Fi).</li>
+      <li>Apps that block screenshots (banking, some video apps) show black.</li>
+      <li>The clipboard goes one way: from the computer to the phone.</li>
+      <li>Tested on Android 16. Samsung's One UI is being tested now.</li>
     </ul>
 
-    <h2>Something not working?</h2>
-    <ul>
-      <li>Open <code>carmirror.outsmartis.dev/diag</code> in the car: it checks what the browser supports.</li>
-      <li>In the phone app, <b>Advanced</b> → "Last problem" shows the most recent error.</li>
-      <li>Report issues on <a href="https://github.com/andreconde21/tesla-car-mirror/issues">GitHub</a>.</li>
-    </ul>
-
-    <p class="credit">The car screenshots show the real CarMirror car interface. The app content in them was put together from real app screenshots for illustration (Conductore's own screenshots; a frame of <i>Big Buck Bunny</i>, © Blender Foundation, CC BY 3.0, standing in for a video).</p>
-    <p class="foot">CarMirror · <a href="/get">Download</a> · <a href="https://github.com/andreconde21/tesla-car-mirror">GitHub</a></p>
+    <p class="foot">PocketDesk is a personal project by <a href="https://andreconde.com">André Conde</a>, built on <a href="https://carmirror.andreconde.com">CarMirror</a>. Source on <a href="https://github.com/andreconde21/PocketDesk">GitHub</a>.</p>
   </div>
 </body>
 </html>

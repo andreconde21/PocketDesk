@@ -54,4 +54,26 @@ interface IPrivileged {
 
     // Whether the on-screen keyboard shows on that display (off: typing on a physical keyboard).
     void setKeyboard(int displayId, boolean show) = 23;
+
+    // PocketDesk: a desktop display (system decorations, launcher's secondary home, freeform
+    // windows) rendering into `surface`. Returns its id.
+    int createDesktop(String name, int width, int height, int dpi, in Surface surface) = 24;
+
+    // "package/activity" opened in a window (freeform) on that display.
+    boolean launchWindowed(String component, int displayId) = 25;
+
+    // Tasks on that display as JSON [{id,pkg,label?,visible,top}], topmost first.
+    String desktopTasks(int displayId) = 26;
+
+    // "focus" (bring to front) or "close" a task.
+    boolean taskAction(int taskId, String action) = 27;
+
+    // Turns on freeform windows / desktop mode on external displays. Returns "ok", or
+    // "reboot" when a setting changed that Android only reads at boot.
+    String prepareDesktop() = 28;
+
+    // Pointer events from a mouse need ACTION_BUTTON_PRESS/RELEASE with an action button:
+    // injects one mouse event built here (a = MotionEvent action, buttons = button state,
+    // actionButton for press/release; vscroll/hscroll for ACTION_SCROLL).
+    boolean injectMouse(int displayId, int action, float x, float y, int buttons, int actionButton, float vscroll, float hscroll, int metaState) = 29;
 }
